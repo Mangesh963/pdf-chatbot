@@ -418,3 +418,6 @@ def admin_report_csv(user=Depends(require_admin)):
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=report_{datetime.now().strftime('%Y-%m-%d')}.csv"}
     )
+@app.get("/")
+def root():
+    return {"message": "PDF Chatbot API is running"}
