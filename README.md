@@ -1,4 +1,18 @@
-# PDF Knowledge Bot
+# PDF Chatbot
+   
+   AI-powered application for querying PDF documents using RAG.
+   
+   **Tech Stack:** FastAPI, Next.js, LangChain, Gemini API, SQLite, JWT Auth
+   
+   **Features:**
+   - Upload PDFs and ask questions
+   - Resume extraction and analysis
+   - User authentication with OTP
+   - Admin dashboard
+   
+   **How to run locally:**
+   1. Backend: `cd backend && pip install -r requirements.txt && python -m uvicorn main:app --reload`
+   2. Frontend: `cd frontend && npm install && npm run dev`
 
 PDF Knowledge Bot is a full-stack document assistant built with FastAPI and
 Next.js. Users can upload PDF documents, ask grounded questions, generate
