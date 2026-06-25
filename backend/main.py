@@ -38,7 +38,7 @@ app.add_middleware(
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
-        "https://pdf-chatbot.vercel.app",
+        "https://pdf-chatbot-theta-seven.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
