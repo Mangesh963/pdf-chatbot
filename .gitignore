@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.env
+venv/
+node_modules/
+.next/
+*.db
+*.db-shm
+*.db-wal
+.streamlit/
+*.log
+chroma_db/
+temp.pdf
+.vscode/
+
+# Legacy root-level Streamlit implementation
+/admin.py
+/app.py
+/auth.py
+/chat.py
+/db.py
+/utils.py
