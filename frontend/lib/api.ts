@@ -1,4 +1,4 @@
-const BASE = "http://127.0.0.1:8000";
+const BASE = "https://pdf-chatbot-production-1a6c.up.railway.app";
 
 function getToken() {
     return typeof window !== "undefined" ? localStorage.getItem("token") : null;
