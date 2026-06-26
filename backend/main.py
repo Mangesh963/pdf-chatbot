@@ -255,7 +255,7 @@ async def upload_pdfs(
     try:
         file_data = [(await f.read(), f.filename) for f in files]
         vs = build_vectorstore(file_data)
-        _vectorstores[user["id"]] = vs
+        save_vectorstore_to_db(user["id"], vs)
         return {"message": f"Indexed {len(files)} file(s)"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -273,7 +273,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 def chat(body: ChatRequest, user=Depends(get_current_user)):
-    vs = _vectorstores.get(user["id"])
+    vs = load_vectorstore_from_db(user["id"])
     if not vs:
         raise HTTPException(status_code=400, detail="No documents uploaded. Please upload PDFs first.")
     if not GOOGLE_API_KEY:
@@ -293,7 +293,7 @@ class QuizRequest(BaseModel):
 
 @app.post("/api/quiz")
 def quiz(body: QuizRequest, user=Depends(get_current_user)):
-    vs = _vectorstores.get(user["id"])
+    vs = load_vectorstore_from_db(user["id"])
     if not vs:
         raise HTTPException(status_code=400, detail="No documents uploaded.")
     if not GOOGLE_API_KEY:
@@ -307,7 +307,7 @@ def quiz(body: QuizRequest, user=Depends(get_current_user)):
 
 @app.post("/api/notes")
 def notes(user=Depends(get_current_user)):
-    vs = _vectorstores.get(user["id"])
+    vs = load_vectorstore_from_db(user["id"])
     if not vs:
         raise HTTPException(status_code=400, detail="No documents uploaded.")
     if not GOOGLE_API_KEY:
@@ -317,10 +317,6 @@ def notes(user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/chat/clear")
-def clear_vectorstore(user=Depends(get_current_user)):
-    _vectorstores.pop(user["id"], None)
-    return {"message": "Knowledge base cleared"}
 
 @app.get("/api/chat/history")
 def chat_history(user=Depends(get_current_user)):
