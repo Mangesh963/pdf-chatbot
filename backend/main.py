@@ -30,28 +30,34 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 # In-memory vectorstore per user session (user_id -> vectorstore)
-_vectorstores: dict = {}
+def save_vectorstore_to_db(user_id: int, vectorstore):
+    """Serialize and save vectorstore to Supabase"""
+    if not supabase:
+        raise Exception("Supabase not configured")
+    try:
+        data = pickle.dumps(vectorstore)
+        encoded = base64.b64encode(data).decode()
+        supabase.table("vectorstores").upsert(
+            {"user_id": user_id, "vectorstore_data": encoded}
+        ).execute()
+    except Exception as e:
+        raise Exception(f"Failed to save vectorstore: {e}")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
-
-app = FastAPI(lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "https://pdf-chatbot-theta-seven.vercel.app",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def load_vectorstore_from_db(user_id: int):
+    """Retrieve and deserialize vectorstore from Supabase"""
+    if not supabase:
+        raise Exception("Supabase not configured")
+    try:
+        response = supabase.table("vectorstores").select("vectorstore_data").eq(
+            "user_id", user_id
+        ).single().execute()
+        if not response.data:
+            return None
+        encoded = response.data["vectorstore_data"]
+        data = base64.b64decode(encoded)
+        return pickle.loads(data)
+    except Exception as e:
+        return None  # No vectorstore yet
 
 # ---------- Auth ----------
 
