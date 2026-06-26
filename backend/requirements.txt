@@ -22,4 +22,4 @@ pytesseract
 pillow
 numpy==1.26.4
 opencv-python-headless==4.11.0.86
-supabase==2.0.0
+supabase==2.13.0
