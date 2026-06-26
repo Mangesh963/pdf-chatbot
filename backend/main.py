@@ -1,16 +1,11 @@
 import os
 import pickle
 import base64
-from supabase import create_client, Client
-
-# Initialize Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
 import io
 import csv
 from contextlib import asynccontextmanager
 from datetime import datetime
+from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,7 +24,12 @@ from resume import extract_resume_text, analyze_resume
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# In-memory vectorstore per user session (user_id -> vectorstore)
+# Initialize Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
+
+# Supabase vectorstore functions
 def save_vectorstore_to_db(user_id: int, vectorstore):
     """Serialize and save vectorstore to Supabase"""
     if not supabase:
@@ -58,6 +58,30 @@ def load_vectorstore_from_db(user_id: int):
         return pickle.loads(data)
     except Exception as e:
         return None  # No vectorstore yet
+
+# Define lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+# Create FastAPI app BEFORE defining routes
+app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "https://pdf-chatbot-theta-seven.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------- Auth ----------
 
@@ -139,7 +163,7 @@ def verify_2fa(body: TwoFAVerifyRequest):
 @app.post("/api/auth/2fa/setup")
 def setup_2fa(user=Depends(get_current_user)):
     """Generate a new TOTP secret and return QR code as base64 PNG."""
-    import pyotp, qrcode, io, base64
+    import pyotp, qrcode
     secret = pyotp.random_base32()
     set_totp_secret(user["id"], secret)
     totp = pyotp.TOTP(secret)
@@ -317,6 +341,11 @@ def notes(user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/chat/clear")
+def clear_vectorstore(user=Depends(get_current_user)):
+    if supabase:
+        supabase.table("vectorstores").delete().eq("user_id", user["id"]).execute()
+    return {"message": "Knowledge base cleared"}
 
 @app.get("/api/chat/history")
 def chat_history(user=Depends(get_current_user)):
@@ -428,6 +457,7 @@ def admin_report_csv(user=Depends(require_admin)):
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=report_{datetime.now().strftime('%Y-%m-%d')}.csv"}
     )
+
 @app.get("/")
 def root():
     return {"message": "PDF Chatbot API is running"}
