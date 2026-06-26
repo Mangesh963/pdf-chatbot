@@ -1,3 +1,4 @@
+import os
 import pickle
 import base64
 from supabase import create_client, Client
@@ -8,7 +9,6 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
 import io
 import csv
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from dotenv import load_dotenv
