@@ -5,7 +5,6 @@ import io
 import csv
 from contextlib import asynccontextmanager
 from datetime import datetime
-from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,45 +23,29 @@ from resume import extract_resume_text, analyze_resume
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Initialize Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
-except Exception as e:
-    print(f"Supabase init failed: {e}")
-    supabase = None
+# File-based vectorstore storage
+STORAGE_DIR = "/tmp/vectorstores"
+os.makedirs(STORAGE_DIR, exist_ok=True)
 
-# Supabase vectorstore functions
 def save_vectorstore_to_db(user_id: int, vectorstore):
-    """Serialize and save vectorstore to Supabase"""
-    if not supabase:
-        raise Exception("Supabase not configured")
+    """Save vectorstore to disk"""
     try:
         data = pickle.dumps(vectorstore)
         encoded = base64.b64encode(data).decode()
-        supabase.table("vectorstores").upsert(
-            {"user_id": user_id, "vectorstore_data": encoded}
-        ).execute()
+        with open(f"{STORAGE_DIR}/{user_id}.pkl", "w") as f:
+            f.write(encoded)
     except Exception as e:
         raise Exception(f"Failed to save vectorstore: {e}")
 
 def load_vectorstore_from_db(user_id: int):
-    """Retrieve and deserialize vectorstore from Supabase"""
-    if not supabase:
-        raise Exception("Supabase not configured")
+    """Load vectorstore from disk"""
     try:
-        response = supabase.table("vectorstores").select("vectorstore_data").eq(
-            "user_id", user_id
-        ).single().execute()
-        if not response.data:
-            return None
-        encoded = response.data["vectorstore_data"]
+        with open(f"{STORAGE_DIR}/{user_id}.pkl", "r") as f:
+            encoded = f.read()
         data = base64.b64decode(encoded)
         return pickle.loads(data)
     except Exception as e:
-        return None  # No vectorstore yet
-
+        return None
 # Define lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
