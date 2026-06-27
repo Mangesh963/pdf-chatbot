@@ -1,6 +1,4 @@
 import os
-import pickle
-import base64
 import io
 import csv
 from contextlib import asynccontextmanager
@@ -23,29 +21,17 @@ from resume import extract_resume_text, analyze_resume
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# File-based vectorstore storage
-STORAGE_DIR = "/tmp/vectorstores"
-os.makedirs(STORAGE_DIR, exist_ok=True)
+# In-memory vectorstore storage (per user)
+_vectorstores: dict = {}
 
 def save_vectorstore_to_db(user_id: int, vectorstore):
-    """Save vectorstore to disk"""
-    try:
-        data = pickle.dumps(vectorstore)
-        encoded = base64.b64encode(data).decode()
-        with open(f"{STORAGE_DIR}/{user_id}.pkl", "w") as f:
-            f.write(encoded)
-    except Exception as e:
-        raise Exception(f"Failed to save vectorstore: {e}")
+    """Store vectorstore in memory"""
+    _vectorstores[user_id] = vectorstore
 
 def load_vectorstore_from_db(user_id: int):
-    """Load vectorstore from disk"""
-    try:
-        with open(f"{STORAGE_DIR}/{user_id}.pkl", "r") as f:
-            encoded = f.read()
-        data = base64.b64decode(encoded)
-        return pickle.loads(data)
-    except Exception as e:
-        return None
+    """Retrieve vectorstore from memory"""
+    return _vectorstores.get(user_id)
+
 # Define lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -150,7 +136,7 @@ def verify_2fa(body: TwoFAVerifyRequest):
 @app.post("/api/auth/2fa/setup")
 def setup_2fa(user=Depends(get_current_user)):
     """Generate a new TOTP secret and return QR code as base64 PNG."""
-    import pyotp, qrcode
+    import pyotp, qrcode, base64
     secret = pyotp.random_base32()
     set_totp_secret(user["id"], secret)
     totp = pyotp.TOTP(secret)
@@ -330,8 +316,7 @@ def notes(user=Depends(get_current_user)):
 
 @app.delete("/api/chat/clear")
 def clear_vectorstore(user=Depends(get_current_user)):
-    if supabase:
-        supabase.table("vectorstores").delete().eq("user_id", user["id"]).execute()
+    _vectorstores.pop(user["id"], None)
     return {"message": "Knowledge base cleared"}
 
 @app.get("/api/chat/history")
