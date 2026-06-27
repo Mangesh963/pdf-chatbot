@@ -27,7 +27,11 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 # Initialize Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
+except Exception as e:
+    print(f"Supabase init failed: {e}")
+    supabase = None
 
 # Supabase vectorstore functions
 def save_vectorstore_to_db(user_id: int, vectorstore):
