@@ -251,18 +251,8 @@ async def upload_pdfs(
 ):
     try:
         file_data = [(await f.read(), f.filename) for f in files]
-        new_vs = build_vectorstore(file_data)
-        
-        # Load existing vectorstore and merge
-        existing_vs = load_vectorstore_from_db(user["id"])
-        if existing_vs:
-            # Merge new documents into existing vectorstore
-            existing_vs.add_documents(new_vs.get_relevant_documents(""))
-            save_vectorstore_to_db(user["id"], existing_vs)
-        else:
-            # First upload
-            save_vectorstore_to_db(user["id"], new_vs)
-        
+        vs = build_vectorstore(file_data)
+        save_vectorstore_to_db(user["id"], vs)
         return {"message": f"Indexed {len(files)} file(s)"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
