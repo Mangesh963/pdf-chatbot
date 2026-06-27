@@ -38,42 +38,21 @@ def init_db_tables():
         )
     """)
     conn.close()
+# In-memory vectorstore storage (per user)
+_vectorstores: dict = {}
 
 def save_vectorstore_to_db(user_id: int, vectorstore):
-    """Store vectorstore in DuckDB"""
-    try:
-        data = pickle.dumps(vectorstore)
-        encoded = base64.b64encode(data).decode()
-        conn = duckdb.connect(DB_PATH)
-        conn.execute(
-            "INSERT INTO vectorstores (user_id, vectorstore_data) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET vectorstore_data = ?",
-            [user_id, encoded, encoded]
-        )
-        conn.close()
-    except Exception as e:
-        raise Exception(f"Failed to save vectorstore: {e}")
+    """Store vectorstore in memory"""
+    _vectorstores[user_id] = vectorstore
 
 def load_vectorstore_from_db(user_id: int):
-    """Load vectorstore from DuckDB"""
-    try:
-        conn = duckdb.connect(DB_PATH)
-        result = conn.execute(f"SELECT vectorstore_data FROM vectorstores WHERE user_id = {user_id}").fetchall()
-        conn.close()
-        if not result:
-            return None
-        encoded = result[0][0]
-        data = base64.b64decode(encoded)
-        return pickle.loads(data)
-    except Exception as e:
-        return None
-
+    """Retrieve vectorstore from memory"""
+    return _vectorstores.get(user_id)
 # Define lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    init_db_tables()
     yield
-
 # Create FastAPI app BEFORE defining routes
 app = FastAPI(lifespan=lifespan)
 
